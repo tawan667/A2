@@ -41,13 +41,14 @@ SHAPE_TEMPLATES = [
 
 def draw_square(x,y,size, fill_color, stroke_color, corner_weight):
     # ส่วนที่ 1 : สร้างพื้นทึบด้วยเส้นแนวนอนมีความหนาเท่ากับพื้นที่ทั้งหมด
+    strokeCap(SQUARE)
     stroke(fill_color[0],fill_color[1],fill_color[2]) # ใส่สี RGB 
     strokeWeight(size)   
     line(x, y+size/2 , x+size , y+size/2)
     
     # ส่วนที่ 2 : เส้นกรอบ 
     stroke(stroke_color[0],stroke_color[1],stroke_color[2])
-    stroke(corner_weight)      # ความหนาไม่เท่ากันบางจุด 
+    strokeWeight(corner_weight)      # ความหนาไม่เท่ากันบางจุด 
     line(x, y, x + size, y)
     line(x, y + size, x + size, y + size)
     line(x, y, x, y + size)
@@ -72,9 +73,34 @@ class Board:
                 col_idx = col_idx + 1
             row_idx = row_idx + 1
 
-    def draw(self):
+    def draw(self): # Draw board  ( check from self.grid )
+        row_idx = 0
+        py = self.oy # เริ่มวาดตำแหน่งบนสุด
+        while row_idx < self.size:
+            col_idx = 0
+            px = self.ox # ให้เริ่มวาดที่ตำแหน่งซ้ายสุด เมื่อขึ้นแถวใหม่
+            while col_idx < self.size:
+                if self.grid[row_idx][col_idx] == 0:
+                    fill_color = (255, 255, 255)  #ตั้งค่าสีพื้นให้เป็นสีขาว
+                    stroke_color = (0, 0, 0)       #ตั้งค่าสีกรอบให้เป็นสีดำ
+                else:  # ถ้าไม่ว่างให้ใส่สีอื่นๆ ตาม PALETTE
+                    fill_color = PALETTE[self.grid[row_idx][col_idx] - 1]
+                    stroke_color = PALETTE[self.grid[row_idx][col_idx] - 1]
+
+                draw_square(px, py, self.cell_size , fill_color, stroke_color, 2)
+
+                px = px + self.cell_size # เลื่อนตำแหน่งเป็นหน่วย pixel
+                col_idx += 1
+
+            py = py + self.cell_size
+            row_idx = row_idx + 1
+
+                    
     def can_place(self, piece, target_r, target_c):
+        pass
     def place(self, piece, target_r, target_c):
+        pass
+        
     
     def clear_lines(self):
         rows_to_clear = []
@@ -99,8 +125,11 @@ class Piece:
         self.mini_cell = 24
     
     def draw(self):
+        pass
     def contains_point(self, px, py):
+        pass
     def reset_pos(self):
+        pass
 
 # --- GLOBAL GAME STATE ---
 board = None
@@ -114,27 +143,40 @@ def spawn_hand():
     global hand
 
 def is_hand_empty():
+    pass
 def check_game_over():
     global game_over
 
 def setup():
     global board, score, game_over
+    size(500,600)
+
+    board = Board(GRID_SIZE, CELL_SIZE, BOARD_X, BOARD_Y)
+
 
 def draw():
+    background(100, 100, 100)
+    board.draw()
     # Draw selected piece on top
     if selected_piece != None:
+        pass
     # When Game over
-    if game_over:
+    if game_over :
+        pass
 
 def mousePressed():
     global selected_piece, selected_index, game_over
 
 def mouseDragged():
+        pass
 
 def mouseReleased():
+    pass
     global selected_piece, selected_index, score, game_over
     if selected_piece == None:
+        pass
     if board.can_place(selected_piece, target_r, target_c):
+        pass
 
 
 draw = draw

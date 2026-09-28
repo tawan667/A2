@@ -113,7 +113,7 @@ class Board:
 
 class Piece:
     def __init__(self, blocks, color_idx, anchor_x, anchor_y):
-        self.blocks = blocks
+        self.blocks = blocks # พิกัด block นับเป็นช่อง (not pixel unit)
         self.color_idx = color_idx
         self.anchor_x = anchor_x
         self.anchor_y = anchor_y
@@ -125,7 +125,23 @@ class Piece:
         self.mini_cell = 24
     
     def draw(self):
-        pass
+        block_color = PALETTE[self.color_idx]   # สีของ block
+        edge_color = (0, 0, 0)         # สีขอบของทุก block ให้เป็นสีดำ
+
+        if self.is_dragging:        # ถ้ากำลังถูกลากอยู่ ใช้ขนาด pixel เท่ากับช่องจริงบนกระดาน (ใหญ่)
+            unit = CELL_SIZE        
+        else:                       # ถ้ายังวางอยู่ในมือเฉยๆ ใช้ขนาด pixel ย่อส่วน (เล็ก)
+            unit = self.mini_cell   
+
+        i = 0
+        while i < len(self.blocks):      # วนไล่ทีละ block
+            offset = self.blocks[i]      # พิกัดของ block นี้ ( not pixel )
+            bx = self.x + offset[0] * unit   # แปลงเป็นตำแหน่ง pixel (แนวนอน)
+            by = self.y + offset[1] * unit   # แปลงเป็นตำแหน่ง pixel (แนวตั้ง)
+
+            draw_square(bx, by, unit , block_color, edge_color, 1)  # วาด 1 ช่อง = 1 block
+            i += 1                            # เลื่อนไป block ถัดไป
+    
     def contains_point(self, px, py):
         pass
     def reset_pos(self):
@@ -133,7 +149,7 @@ class Piece:
 
 # --- GLOBAL GAME STATE ---
 board = None
-hand = [0, 0, 0]
+hand = [0, 0, 0] # เอาไว้เก็บชิ้นส่วนที่อยู่ในมือผู้เล่น สูงสุด 3 ชิ้นพร้อมกัน
 score = 0
 game_over = False
 selected_piece = None
@@ -141,7 +157,32 @@ selected_index = -1
 
 def spawn_hand():
     global hand
+    slot_w = width / 3  # แบ่งความกว้างจอออกเป็น 3 ส่วนเท่าๆ กัน สำหรับ 3 slot
+    slot_x = 0           # เริ่มขอบซ้ายสุดของจอ แล้วบวกสะสมทีละ slot
+    mini_cell = 24       # ขนาดช่องของชิ้นส่วนตอนอยู่ในมือ
 
+    i = 0
+    while i < len(hand):                 # วนสร้างชิ้นส่วนใหม่ให้ครบทุกช่องใน hand
+        pick = random.choice(SHAPE_TEMPLATES)   # สุ่ม 1 รูปทรงจากลิสต์ SHAPE_TEMPLATES
+        shape = pick[0]                  # ดึงรูปทรง (blocks) ออกมา
+        hue = pick[1]                    # hue = เฉดสี ดึง color_idx ออกมา
+
+        # หาความกว้างจริงของชิ้นส่วนนี้ 
+        max_col = 0                     # เก็บค่าคอลัมน์ที่อยู่ขวาสุดของรูปทรงนี้ เริ่มที่ 0
+        j = 0
+        while j < len(shape):           # วนดูทุกบล็อกในรูปทรง
+            if shape[j][0] > max_col:                                                      
+                max_col = shape[j][0]   # อัปเดตค่าคอลัมน์ขวาสุดใหม่
+            j += 1
+        piece_width = (max_col + 1) * mini_cell   # แปลงเป็นความกว้าง pixel ของชิ้นส่วนนี้
+
+        new_x = slot_x + (slot_w / 2) - (piece_width / 2)   # ลบครึ่งความกว้างจริง
+        new_y = 490                          # ตำแหน่ง y ตายตัว วางแถวเดียวกันทุกชิ้น
+
+        hand[i] = Piece(shape, hue, new_x, new_y)   # สร้าง Piece ใหม่ เก็บลงช่องที่ i ของ hand
+
+        slot_x += slot_w                 # เลื่อนไปเตรียมตำแหน่ง slot ถัดไป
+        i += 1                           # เลื่อนไปช่องถัดไปของ hand
 def is_hand_empty():
     pass
 def check_game_over():
@@ -153,10 +194,23 @@ def setup():
 
     board = Board(GRID_SIZE, CELL_SIZE, BOARD_X, BOARD_Y)
 
+    score = 0
+    game_over = False
+
+    spawn_hand()
+ 
+
 
 def draw():
     background(100, 100, 100)
     board.draw()
+
+    slot = 0      # วาดชิ้นส่วนในมือแต่ละ slot 3 ช่อง
+    while slot < len(hand):
+        if hand[slot] != 0:      # ข้ามช่องที่ว่าง (ค่า 0)
+            hand[slot].draw()
+        slot += 1
+
     # Draw selected piece on top
     if selected_piece != None:
         pass

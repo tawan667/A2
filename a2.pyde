@@ -97,9 +97,33 @@ class Board:
 
                     
     def can_place(self, piece, target_r, target_c):
-        pass
+        ok = True       # กำหนดให้สามารถวางได้ไว้ก่อน
+        
+        # วนตรวจ block ทีละ block ของชิ้นส่วนทีละตัว ว่า block นั้นวางลงกระดานได้ไหม
+        i = 0
+        while i < len(piece.blocks) and ok:      # หยุดลูปทันทีเมื่อ ok เป็น False
+            row = target_r + piece.blocks[i][1]  
+            col = target_c + piece.blocks[i][0]
+
+            if row < 0 or row >= self.size or col < 0 or col >= self.size:
+                ok = False                       # ตกขอบเขต
+            elif self.grid[row][col] != 0:
+                ok = False                       # ช่องไม่ว่าง
+            i += 1
+
+        return ok
+
     def place(self, piece, target_r, target_c):
-        pass
+        color_value = piece.color_idx + 1  # คำนวณเลขสีสำหรับเขียนลงกระดาน
+        i = 0
+        while i < len(piece.blocks) :
+            row = target_r + piece.blocks[i][1]  # แถวจริงบนกระดาน
+            col = target_c + piece.blocks[i][0]  # คอลัมน์จริงบนกระดาน
+            
+            # เก็บสีลงในช่องกระดานนั้น
+            self.grid[row][col] = piece.color_idx + 1
+            i += 1
+
         
     
     def clear_lines(self):

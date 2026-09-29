@@ -117,10 +117,10 @@ class Piece:
         self.color_idx = color_idx
         self.anchor_x = anchor_x
         self.anchor_y = anchor_y
-        self.x = anchor_x
+        self.x = anchor_x    # x , y คือ ตำแหน่งปัจจุบันของมุมซ้ายบน (pixel)
         self.y = anchor_y
         self.is_dragging = False
-        self.drag_offset_x = 0
+        self.drag_offset_x = 0  # ระยะจากมุมซ้ายบนถึงเมาส์ 
         self.drag_offset_y = 0
         self.mini_cell = 24
     
@@ -143,16 +143,37 @@ class Piece:
             i += 1                            # เลื่อนไป block ถัดไป
     
     def contains_point(self, px, py):
-        pass
+        # check ขนาดช่องเดียวกับตอน draw() เพื่อให้พื้นที่ตรวจตรงกับที่เห็นบนจอ
+        if self.is_dragging:
+            unit = CELL_SIZE
+        else:
+            unit = self.mini_cell
+
+        i = 0
+        while i < len(self.blocks):          # วนตรวจทีละ block
+            offset = self.blocks[i]
+            bx = self.x + offset[0] * unit   # มุมซ้ายบนของ block (pixel)
+            by = self.y + offset[1] * unit
+
+            # ถ้าจุด (px, py) อยู่ในพื้นที่สี่เหลี่ยมของ block นี้ = คลิกโดนชิ้นส่วน
+            if px >= bx and px < bx + unit and py >= by and py < by + unit:
+                return True
+            i += 1
+
+        return False                         # ไม่โดน block ไหนเลย
+    
     def reset_pos(self):
-        pass
+        # ส่งชิ้นส่วนกลับไปตำแหน่ง anchor ในมือ
+        self.x = anchor_x
+        self.y = anchor_y
+        self.is_dragging = False # อัพเดทให้ไม่ใช่สถานะกำลังลาก
 
 # --- GLOBAL GAME STATE ---
 board = None
 hand = [0, 0, 0] # เอาไว้เก็บชิ้นส่วนที่อยู่ในมือผู้เล่น สูงสุด 3 ชิ้นพร้อมกัน
 score = 0
 game_over = False
-selected_piece = None
+selected_piece = None  # ชิ้นส่วนที่ผู้เล่นกำลังลากอยู่
 selected_index = -1
 
 def spawn_hand():
@@ -220,9 +241,39 @@ def draw():
 
 def mousePressed():
     global selected_piece, selected_index, game_over
+    
+    # ถ้าแพ้แล้ว คลิกเพื่อเริ่มเกมใหม่
+    if game_over:
+        setup()
+        return
+
+    # หาชิ้นส่วนที่เมาส์คลิกโดน
+    i = 0
+    while i < len(hand):
+        piece = hand[i]
+        # ถ้าเจอให้เตรียมพร้อมสำหรับการลาก
+        if piece != 0 and piece.contains_point(mouseX, mouseY):
+            selected_piece = piece
+            selected_index = i
+
+            # ระยะจากมุมซ้ายบนของชิ้นส่วน(ขนาดเล็กในมือ) ถึงเมาส์
+            # คูณสเกลเป็นขนาดใหญ่ เพราะตอนลากชิ้นส่วนจะขยายเป็น 2 เท่า
+            scale = CELL_SIZE / piece.mini_cell   
+            piece.drag_offset_x = (mouseX - piece.x) * scale
+            piece.drag_offset_y = (mouseY - piece.y) * scale
+
+            # เริ่มสถานะลาก และขยับตำแหน่งทันทีให้เมาส์อยู่บน block เดิม
+            piece.is_dragging = True
+            piece.x = mouseX - piece.drag_offset_x
+            piece.y = mouseY - piece.drag_offset_y
+            return          
+        i += 1
 
 def mouseDragged():
-        pass
+        if selected_piece != None : # มีการลากชิ้นส่วนเกิดขึ้น
+            # คำนวณตำแหน่งมุมซ้ายบนใหม่ของชิ้นส่วนตามเมาส์ โดยรักษาระยะ offset ที่คำนวณไว้ตอนคลิก
+            selected_piece.x = mouseX - selected_piece.drag_offset_x 
+            selected_piece.y = mouseY - selected_piece.drag_offset_y
 
 def mouseReleased():
     pass

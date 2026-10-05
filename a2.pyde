@@ -85,7 +85,8 @@ class Board:
                     stroke_color = (0, 0, 0)       #ตั้งค่าสีกรอบให้เป็นสีดำ
                 else:  # ถ้าไม่ว่างให้ใส่สีอื่นๆ ตาม PALETTE
                     fill_color = PALETTE[self.grid[row_idx][col_idx] - 1]
-                    stroke_color = PALETTE[self.grid[row_idx][col_idx] - 1]
+                
+                stroke_color = (0, 0, 0) 
 
                 draw_square(px, py, self.cell_size , fill_color, stroke_color, 2)
 
@@ -121,19 +122,63 @@ class Board:
             col = target_c + piece.blocks[i][0]  # คอลัมน์จริงบนกระดาน
             
             # เก็บสีลงในช่องกระดานนั้น
-            self.grid[row][col] = piece.color_idx + 1
+            self.grid[row][col] = color_value
             i += 1
 
         
     
     def clear_lines(self):
-        rows_to_clear = []
-        cols_to_clear = []
+        rows_to_clear = [] # ลิสต์เก็บ "เลขแถว" (0-7) เมื่อแถวนั้นเต็มทุกช่อง
+        cols_to_clear = [] # ลิสต์เก็บ "เลขคอลลัมน์" (0-7) เมื่อคอลลัมน์นั้นเต็มทุกช่อง
 
-        # Check full rows
-        # Check full columns
-        # Clear detected rows
-        # Clear detected columns
+        # Check full rows: นับจำนวนช่องที่มี block ในแต่ละแถว
+        r = 0
+        while r < self.size:
+            filled = 0                          # ตัวนับช่องที่ไม่ว่าง
+            c = 0
+            while c < self.size:
+                if self.grid[r][c] != 0:
+                    filled += 1
+                c += 1
+            if filled == self.size:             # นับได้ครบทั้งแถว = แถวเต็ม
+                rows_to_clear.append(r)
+            r += 1
+
+        # Check full columns: นับแบบเดียวกันตามแนวตั้ง
+        c = 0
+        while c < self.size:
+            filled = 0
+            r = 0
+            while r < self.size:
+                if self.grid[r][c] != 0:
+                    filled += 1
+                r += 1
+            if filled == self.size:
+                cols_to_clear.append(c)
+            c += 1
+
+        # Clear detected rows: วนตามเลขแถวในลิสต์ แล้วล้างทั้งแถว
+        i = 0
+        while i < len(rows_to_clear):
+            r = rows_to_clear[i]            # เลขแถวที่ต้องล้าง
+            c = 0
+            while c < self.size:
+                self.grid[r][c] = 0
+                c += 1
+            i += 1
+
+        # Clear detected columns: เหมือนกัน แต่ล้างทั้งคอลัมน์
+        i = 0
+        while i < len(cols_to_clear):
+            c = cols_to_clear[i]            # เลขคอลัมน์ที่ต้องล้าง
+            r = 0
+            while r < self.size:
+                self.grid[r][c] = 0
+                r += 1
+            i += 1
+
+        # คะแนน = (แถวที่ล้าง + คอลัมน์ที่ล้าง) x 100
+        return (len(rows_to_clear) + len(cols_to_clear)) * 100
 
 class Piece:
     def __init__(self, blocks, color_idx, anchor_x, anchor_y):
@@ -188,8 +233,8 @@ class Piece:
     
     def reset_pos(self):
         # ส่งชิ้นส่วนกลับไปตำแหน่ง anchor ในมือ
-        self.x = anchor_x
-        self.y = anchor_y
+        self.x = self.anchor_x
+        self.y = self.anchor_y
         self.is_dragging = False # อัพเดทให้ไม่ใช่สถานะกำลังลาก
 
 # --- GLOBAL GAME STATE ---
@@ -198,7 +243,7 @@ hand = [0, 0, 0] # เอาไว้เก็บชิ้นส่วนที�
 score = 0
 game_over = False
 selected_piece = None  # ชิ้นส่วนที่ผู้เล่นกำลังลากอยู่
-selected_index = -1
+selected_index = -1  # index ใน array hand ( ค่า -1 คือค่าเริ่มต้นที่แปลว่า "ยังไม่ได้เลือกชิ้นไหน") 
 
 def spawn_hand():
     global hand
@@ -228,10 +273,48 @@ def spawn_hand():
 
         slot_x += slot_w                 # เลื่อนไปเตรียมตำแหน่ง slot ถัดไป
         i += 1                           # เลื่อนไปช่องถัดไปของ hand
-def is_hand_empty():
-    pass
+
+def is_hand_empty(): #  check ว่าในมือยังว่างไหม
+    i = 0
+    while i < len(hand):
+        if hand[i] != 0:
+            return False
+        i += 1
+    return True
+
 def check_game_over():
     global game_over
+
+    # รวบรวมชิ้นส่วนในมือที่ "รูปทรงไม่ซ้ำกัน"
+    unique_pieces = []
+    i = 0
+    while i < len(hand):
+        piece = hand[i]
+        if piece != 0:                              # ข้ามช่องที่ใช้ไปแล้ว
+            is_duplicate = False
+            j = 0
+            while j < len(unique_pieces):
+                if unique_pieces[j].blocks == piece.blocks:   # check ว่ารูปทรงเดียวกันไหม
+                    is_duplicate = True
+                j += 1
+            if is_duplicate == False:
+                unique_pieces.append(piece)
+        i += 1
+
+    # ลองวางแต่ละชิ้นที่รวบรวมมาลงทุกช่องของกระดาน
+    game_over = True   # สมมติว่าเกมจบไว้ก่อน
+    k = 0
+    while k < len(unique_pieces) and game_over == True:
+        r = 0
+        while r < board.size and game_over == True:
+            c = 0
+            while c < board.size and game_over == True:
+                if board.can_place(unique_pieces[k], r, c):
+                    game_over = False     # เจอที่วาง แสดงว่าเกมยังไม่จบ
+                c += 1
+            r += 1
+        k += 1
+    return game_over
 
 def setup():
     global board, score, game_over
@@ -248,20 +331,44 @@ def setup():
 
 def draw():
     background(100, 100, 100)
+
+    # --- แถบด้านบน: คะแนน และสถานะเกม ---
+    fill(255, 255, 255)
+    textSize(22)
+    text("Score: " + str(score), BOARD_X, 36)
+
+    textSize(18)
+    if game_over:
+        fill(255, 90, 90)
+        text("Status: YOU LOSE", 260, 36)
+    else:
+        fill(120, 255, 120)
+        text("Status: Playing", 260, 36)
+
     board.draw()
 
-    slot = 0      # วาดชิ้นส่วนในมือแต่ละ slot 3 ช่อง
+    # วาดชิ้นส่วนในมือ ข้ามช่องว่าง และข้ามชิ้นที่กำลังถูกลาก
+    slot = 0
     while slot < len(hand):
-        if hand[slot] != 0:      # ข้ามช่องที่ว่าง (ค่า 0)
+        if hand[slot] != 0 and hand[slot].is_dragging == False:
             hand[slot].draw()
         slot += 1
 
-    # Draw selected piece on top
+    # วาดชิ้นที่กำลังลากไว้บนสุด
     if selected_piece != None:
-        pass
-    # When Game over
+        selected_piece.draw()
+
+    # ตอนเกมจบ แสดงข้อความกลางจอ
     if game_over :
-        pass
+        noStroke()  
+        
+        fill(255, 90, 90)
+        textSize(40)
+        text("YOU LOSE", width / 2 - 85, 298)
+
+        fill(255, 255, 255)
+        textSize(16)
+        text("Click to restart", width / 2 - 55, 335)
 
 def mousePressed():
     global selected_piece, selected_index, game_over
@@ -300,12 +407,37 @@ def mouseDragged():
             selected_piece.y = mouseY - selected_piece.drag_offset_y
 
 def mouseReleased():
-    pass
     global selected_piece, selected_index, score, game_over
+
+    # ไม่ได้ถือชิ้นส่วน ให้ออกจากฟังก์ชัน
     if selected_piece == None:
-        pass
+        return
+
+    # แปลงตำแหน่งมุมซ้ายบนของชิ้นส่วน (pixel) เป็นตำแหน่งพิกัดช่องบนกระดาน
+    col_float = (selected_piece.x - board.ox) / float(board.cell_size)
+    row_float = (selected_piece.y - board.oy) / float(board.cell_size)
+    target_c = int(round(col_float))
+    target_r = int(round(row_float))
+
     if board.can_place(selected_piece, target_r, target_c):
-        pass
+        board.place(selected_piece, target_r, target_c) # ส่งพิกัดช่อง ให้ can_place() วนคำนวณทุก block แล้วเขียนสีลงกระดาน
+
+        # คะแนน = จากการวาง + จากแถวและคอลัมน์ที่ล้างได้
+        gained = len(selected_piece.blocks) * 10
+        gained = gained + board.clear_lines()
+        score = score + gained
+
+        hand[selected_index] = 0      # เอาชิ้นที่ใช้แล้วออกจากมือ
+
+        if is_hand_empty():
+            spawn_hand()              # หมดทั้ง 3 ชิ้น สุ่มชุดใหม่
+        game_over = check_game_over()
+    else:
+        selected_piece.reset_pos()    # วางไม่ได้ ส่งกลับที่เดิม
+
+    # เคลียร์การเลือกใหม่ 
+    selected_piece = None
+    selected_index = -1
 
 
 draw = draw

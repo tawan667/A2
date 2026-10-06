@@ -1,13 +1,12 @@
-from processing import *
-import random 
 
-# Draft for function designs
-# function design
+import random
+
 # --- CONFIGURATION ---
 GRID_SIZE = 8
 CELL_SIZE = 48
 BOARD_X = 58
 BOARD_Y = 60
+SAVE_FILE = "savegame.txt"      # ไฟล์ที่ใช้บันทึกเกม
 
 PALETTE = [
     (245, 93, 62),   # Orange-Red
@@ -32,23 +31,35 @@ SHAPE_TEMPLATES = [
     ([(0, 0), (0, 1)], 1),
     ([(0, 0), (0, 1), (0, 2)], 2),
     ([(0, 0), (0, 1), (0, 2), (0, 3)], 3),
-    # L 
+    # L
     ([(0, 0), (0, 1), (1, 1)], 4),
     ([(0, 0), (1, 0), (0, 1)], 0),
     ([(0, 0), (1, 0), (1, 1)], 1),
     ([(0, 1), (1, 1), (1, 0)], 2),
 ]
 
-def draw_square(x,y,size, fill_color, stroke_color, corner_weight):
+
+def draw_square(x, y, size, fill_color, stroke_color, corner_weight):
     # ส่วนที่ 1 : สร้างพื้นทึบด้วยเส้นแนวนอนมีความหนาเท่ากับพื้นที่ทั้งหมด
     strokeCap(SQUARE)
-    stroke(fill_color[0],fill_color[1],fill_color[2]) # ใส่สี RGB 
-    strokeWeight(size)   
-    line(x, y+size/2 , x+size , y+size/2)
-    
-    # ส่วนที่ 2 : เส้นกรอบ 
-    stroke(stroke_color[0],stroke_color[1],stroke_color[2])
-    strokeWeight(corner_weight)      # ความหนาไม่เท่ากันบางจุด 
+    stroke(fill_color[0], fill_color[1], fill_color[2])  # ใส่สี RGB
+    strokeWeight(size)
+    line(x, y + size / 2, x + size, y + size / 2)
+
+    # ส่วนที่ 2 : เส้นกรอบ
+    stroke(stroke_color[0], stroke_color[1], stroke_color[2])
+    strokeWeight(corner_weight)
+    line(x, y, x + size, y)
+    line(x, y + size, x + size, y + size)
+    line(x, y, x, y + size)
+    line(x + size, y, x + size, y + size)
+
+
+def draw_outline(x, y, size, color, weight):
+    # วาดเฉพาะกรอบสี่เหลี่ยม (ไม่มีสีพื้น) ใช้กับ ghost preview
+    strokeCap(SQUARE)
+    stroke(color[0], color[1], color[2])
+    strokeWeight(weight)
     line(x, y, x + size, y)
     line(x, y + size, x + size, y + size)
     line(x, y, x, y + size)
@@ -61,55 +72,54 @@ class Board:
         self.cell_size = cell_size
         self.ox = origin_x
         self.oy = origin_y
-        
-        self.grid = []  # 2D array เก็บค่าตำแหน่งในตาราง 8*8 
-        
+
+        self.grid = []  # 2D array เก็บค่าตำแหน่งในตาราง 8*8
+
         row_idx = 0
-        while row_idx < self.size :
-            self.grid.append([]) # เพิ่มแถวใหม่ที่ยังว่างเปล่าเข้าไปก่อน
+        while row_idx < self.size:
+            self.grid.append([])  # เพิ่มแถวใหม่ที่ยังว่างเปล่าเข้าไปก่อน
             col_idx = 0
-            while col_idx < self.size :
-                self.grid[row_idx].append(0) # เติม 0 เข้าไปในแถวที่ r ทีละ column
+            while col_idx < self.size:
+                self.grid[row_idx].append(0)  # เติม 0 เข้าไปในแถวที่ r ทีละ column
                 col_idx = col_idx + 1
             row_idx = row_idx + 1
 
-    def draw(self): # Draw board  ( check from self.grid )
+    def draw(self):  # Draw board  ( check from self.grid )
         row_idx = 0
-        py = self.oy # เริ่มวาดตำแหน่งบนสุด
+        py = self.oy  # เริ่มวาดตำแหน่งบนสุด
+
         while row_idx < self.size:
             col_idx = 0
-            px = self.ox # ให้เริ่มวาดที่ตำแหน่งซ้ายสุด เมื่อขึ้นแถวใหม่
+            px = self.ox  # ให้เริ่มวาดที่ตำแหน่งซ้ายสุด เมื่อขึ้นแถวใหม่         
             while col_idx < self.size:
                 if self.grid[row_idx][col_idx] == 0:
-                    fill_color = (255, 255, 255)  #ตั้งค่าสีพื้นให้เป็นสีขาว
-                    stroke_color = (0, 0, 0)       #ตั้งค่าสีกรอบให้เป็นสีดำ
-                else:  # ถ้าไม่ว่างให้ใส่สีอื่นๆ ตาม PALETTE
+                    fill_color = (255, 255, 255)  # ช่องว่าง สีพื้นขาว
+                else:  # ถ้าไม่ว่างให้ใส่สีตาม PALETTE
                     fill_color = PALETTE[self.grid[row_idx][col_idx] - 1]
-                
-                stroke_color = (0, 0, 0) 
 
-                draw_square(px, py, self.cell_size , fill_color, stroke_color, 2)
+                stroke_color = (0, 0, 0)  # สีกรอบเป็นสีดำทุกช่อง เพื่อให้เห็นช่องแบ่ง
 
-                px = px + self.cell_size # เลื่อนตำแหน่งเป็นหน่วย pixel
+                draw_square(px, py, self.cell_size, fill_color, stroke_color, 2)
+
+                px = px + self.cell_size  # เลื่อนตำแหน่งเป็นหน่วย pixel
                 col_idx += 1
 
             py = py + self.cell_size
             row_idx = row_idx + 1
 
-                    
     def can_place(self, piece, target_r, target_c):
-        ok = True       # กำหนดให้สามารถวางได้ไว้ก่อน
-        
-        # วนตรวจ block ทีละ block ของชิ้นส่วนทีละตัว ว่า block นั้นวางลงกระดานได้ไหม
+        ok = True  # กำหนดให้สามารถวางได้ไว้ก่อน
+
+        # วนตรวจ block ทีละ block ของชิ้นส่วน ว่า block นั้นวางลงกระดานได้ไหม
         i = 0
-        while i < len(piece.blocks) and ok:      # หยุดลูปทันทีเมื่อ ok เป็น False
-            row = target_r + piece.blocks[i][1]  
+        while i < len(piece.blocks) and ok:  # หยุดลูปทันทีเมื่อ ok เป็น False
+            row = target_r + piece.blocks[i][1]
             col = target_c + piece.blocks[i][0]
 
             if row < 0 or row >= self.size or col < 0 or col >= self.size:
-                ok = False                       # ตกขอบเขต
+                ok = False  # ตกขอบเขต
             elif self.grid[row][col] != 0:
-                ok = False                       # ช่องไม่ว่าง
+                ok = False  # ช่องไม่ว่าง
             i += 1
 
         return ok
@@ -117,30 +127,28 @@ class Board:
     def place(self, piece, target_r, target_c):
         color_value = piece.color_idx + 1  # คำนวณเลขสีสำหรับเขียนลงกระดาน
         i = 0
-        while i < len(piece.blocks) :
+        while i < len(piece.blocks):
             row = target_r + piece.blocks[i][1]  # แถวจริงบนกระดาน
             col = target_c + piece.blocks[i][0]  # คอลัมน์จริงบนกระดาน
-            
+
             # เก็บสีลงในช่องกระดานนั้น
             self.grid[row][col] = color_value
             i += 1
 
-        
-    
     def clear_lines(self):
-        rows_to_clear = [] # ลิสต์เก็บ "เลขแถว" (0-7) เมื่อแถวนั้นเต็มทุกช่อง
-        cols_to_clear = [] # ลิสต์เก็บ "เลขคอลลัมน์" (0-7) เมื่อคอลลัมน์นั้นเต็มทุกช่อง
+        rows_to_clear = []  # ลิสต์เก็บ "เลขแถว" (0-7) เมื่อแถวนั้นเต็มทุกช่อง
+        cols_to_clear = []  # ลิสต์เก็บ "เลขคอลัมน์" (0-7) เมื่อคอลัมน์นั้นเต็มทุกช่อง
 
         # Check full rows: นับจำนวนช่องที่มี block ในแต่ละแถว
         r = 0
         while r < self.size:
-            filled = 0                          # ตัวนับช่องที่ไม่ว่าง
+            filled = 0  # ตัวนับช่องที่ไม่ว่าง
             c = 0
             while c < self.size:
                 if self.grid[r][c] != 0:
                     filled += 1
                 c += 1
-            if filled == self.size:             # นับได้ครบทั้งแถว = แถวเต็ม
+            if filled == self.size:  # นับได้ครบทั้งแถว = แถวเต็ม
                 rows_to_clear.append(r)
             r += 1
 
@@ -160,7 +168,7 @@ class Board:
         # Clear detected rows: วนตามเลขแถวในลิสต์ แล้วล้างทั้งแถว
         i = 0
         while i < len(rows_to_clear):
-            r = rows_to_clear[i]            # เลขแถวที่ต้องล้าง
+            r = rows_to_clear[i]
             c = 0
             while c < self.size:
                 self.grid[r][c] = 0
@@ -170,7 +178,7 @@ class Board:
         # Clear detected columns: เหมือนกัน แต่ล้างทั้งคอลัมน์
         i = 0
         while i < len(cols_to_clear):
-            c = cols_to_clear[i]            # เลขคอลัมน์ที่ต้องล้าง
+            c = cols_to_clear[i]
             r = 0
             while r < self.size:
                 self.grid[r][c] = 0
@@ -180,48 +188,50 @@ class Board:
         # คะแนน = (แถวที่ล้าง + คอลัมน์ที่ล้าง) x 100
         return (len(rows_to_clear) + len(cols_to_clear)) * 100
 
+
 class Piece:
-    def __init__(self, blocks, color_idx, anchor_x, anchor_y):
-        self.blocks = blocks # พิกัด block นับเป็นช่อง (not pixel unit)
+    def __init__(self, blocks, color_idx, anchor_x, anchor_y, template_idx=0):
+        self.blocks = blocks  # พิกัด block นับเป็นช่อง (not pixel unit)
         self.color_idx = color_idx
+        self.template_idx = template_idx  # index ของรูปทรงใน SHAPE_TEMPLATES (ใช้ตอน save)
         self.anchor_x = anchor_x
         self.anchor_y = anchor_y
-        self.x = anchor_x    # x , y คือ ตำแหน่งปัจจุบันของมุมซ้ายบน (pixel)
+        self.x = anchor_x  # x , y คือ ตำแหน่งปัจจุบันของมุมซ้ายบน (pixel)
         self.y = anchor_y
         self.is_dragging = False
-        self.drag_offset_x = 0  # ระยะจากมุมซ้ายบนถึงเมาส์ 
+        self.drag_offset_x = 0  # ระยะจากมุมซ้ายบนถึงเมาส์
         self.drag_offset_y = 0
         self.mini_cell = 24
-    
-    def draw(self):
-        block_color = PALETTE[self.color_idx]   # สีของ block
-        edge_color = (0, 0, 0)         # สีขอบของทุก block ให้เป็นสีดำ
 
-        if self.is_dragging:        # ถ้ากำลังถูกลากอยู่ ใช้ขนาด pixel เท่ากับช่องจริงบนกระดาน (ใหญ่)
-            unit = CELL_SIZE        
-        else:                       # ถ้ายังวางอยู่ในมือเฉยๆ ใช้ขนาด pixel ย่อส่วน (เล็ก)
-            unit = self.mini_cell   
+    def draw(self):
+        block_color = PALETTE[self.color_idx]  # สีของ block
+        edge_color = (0, 0, 0)  # สีขอบของทุก block ให้เป็นสีดำ
+
+        if self.is_dragging:  # ถ้ากำลังถูกลากอยู่ ใช้ขนาด pixel เท่ากับช่องจริงบนกระดาน (ใหญ่)
+            unit = CELL_SIZE
+        else:  # ถ้ายังวางอยู่ในมือเฉยๆ ใช้ขนาด pixel ย่อส่วน (เล็ก)
+            unit = self.mini_cell
 
         i = 0
-        while i < len(self.blocks):      # วนไล่ทีละ block
-            offset = self.blocks[i]      # พิกัดของ block นี้ ( not pixel )
-            bx = self.x + offset[0] * unit   # แปลงเป็นตำแหน่ง pixel (แนวนอน)
-            by = self.y + offset[1] * unit   # แปลงเป็นตำแหน่ง pixel (แนวตั้ง)
+        while i < len(self.blocks):  # วนไล่ทีละ block
+            offset = self.blocks[i]  # พิกัดของ block นี้ ( not pixel )
+            bx = self.x + offset[0] * unit  # แปลงเป็นตำแหน่ง pixel (แนวนอน)
+            by = self.y + offset[1] * unit  # แปลงเป็นตำแหน่ง pixel (แนวตั้ง)
 
-            draw_square(bx, by, unit , block_color, edge_color, 1)  # วาด 1 ช่อง = 1 block
-            i += 1                            # เลื่อนไป block ถัดไป
-    
+            draw_square(bx, by, unit, block_color, edge_color, 1)  # วาด 1 ช่อง = 1 block
+            i += 1
+
     def contains_point(self, px, py):
-        # check ขนาดช่องเดียวกับตอน draw() เพื่อให้พื้นที่ตรวจตรงกับที่เห็นบนจอ
+        # ใช้ขนาดช่องเดียวกับตอน draw() เพื่อให้พื้นที่ตรวจตรงกับที่เห็นบนจอ
         if self.is_dragging:
             unit = CELL_SIZE
         else:
             unit = self.mini_cell
 
         i = 0
-        while i < len(self.blocks):          # วนตรวจทีละ block
+        while i < len(self.blocks):  # วนตรวจทีละ block
             offset = self.blocks[i]
-            bx = self.x + offset[0] * unit   # มุมซ้ายบนของ block (pixel)
+            bx = self.x + offset[0] * unit  # มุมซ้ายบนของ block (pixel)
             by = self.y + offset[1] * unit
 
             # ถ้าจุด (px, py) อยู่ในพื้นที่สี่เหลี่ยมของ block นี้ = คลิกโดนชิ้นส่วน
@@ -229,58 +239,65 @@ class Piece:
                 return True
             i += 1
 
-        return False                         # ไม่โดน block ไหนเลย
-    
+        return False  # ไม่โดน block ไหนเลย
+
     def reset_pos(self):
         # ส่งชิ้นส่วนกลับไปตำแหน่ง anchor ในมือ
         self.x = self.anchor_x
         self.y = self.anchor_y
-        self.is_dragging = False # อัพเดทให้ไม่ใช่สถานะกำลังลาก
+        self.is_dragging = False
+
 
 # --- GLOBAL GAME STATE ---
 board = None
-hand = [0, 0, 0] # เอาไว้เก็บชิ้นส่วนที่อยู่ในมือผู้เล่น สูงสุด 3 ชิ้นพร้อมกัน
+hand = [0, 0, 0]  # ชิ้นส่วนในมือผู้เล่น สูงสุด 3 ชิ้นพร้อมกัน
 score = 0
+combo_streak = 0         # จำนวนครั้งที่ล้างแถว/คอลัมน์ติดต่อกัน
 game_over = False
-selected_piece = None  # ชิ้นส่วนที่ผู้เล่นกำลังลากอยู่
-selected_index = -1  # index ใน array hand ( ค่า -1 คือค่าเริ่มต้นที่แปลว่า "ยังไม่ได้เลือกชิ้นไหน") 
+selected_piece = None    # ชิ้นส่วนที่ผู้เล่นกำลังลากอยู่
+selected_index = -1      # ช่องใน hand ของชิ้นที่ลาก (-1 = ยังไม่ได้เลือก)
+
+status_notice = ""       # ข้อความแจ้งผล save/load
+status_timer = 0         # นับถอยหลังเวลาแจ้งผลข้อความเป็นจำนวนเฟรม ถึง 0 แล้วข้อความหาย
+clear_msg = ""           # ข้อความ CLEAR +N ที่แสดงมุมขวาบน
+clear_timer = 0          # นับถอยหลังการแสดงข้อความ เป็นจำนวนเฟรม
+
+def make_piece(template_idx, color_idx, slot):
+    # สร้างชิ้นส่วนจากรูปทรง + สี และคำนวณตำแหน่งบ้านตามช่อง slot (0-2) ในมือ
+    slot_w = width / 3.0
+    shape = SHAPE_TEMPLATES[template_idx][0]
+
+    # หาความกว้างจริงของชิ้นส่วน
+    max_col = 0
+    j = 0
+    while j < len(shape):
+        if shape[j][0] > max_col:
+            max_col = shape[j][0]
+        j += 1
+    piece_width = (max_col + 1) * 24
+
+    new_x = slot * slot_w + (slot_w / 2) - (piece_width / 2)
+    new_y = 490
+    return Piece(shape, color_idx, new_x, new_y, template_idx)
+
 
 def spawn_hand():
     global hand
-    slot_w = width / 3  # แบ่งความกว้างจอออกเป็น 3 ส่วนเท่าๆ กัน สำหรับ 3 slot
-    slot_x = 0           # เริ่มขอบซ้ายสุดของจอ แล้วบวกสะสมทีละ slot
-    mini_cell = 24       # ขนาดช่องของชิ้นส่วนตอนอยู่ในมือ
-
     i = 0
-    while i < len(hand):                 # วนสร้างชิ้นส่วนใหม่ให้ครบทุกช่องใน hand
-        pick = random.choice(SHAPE_TEMPLATES)   # สุ่ม 1 รูปทรงจากลิสต์ SHAPE_TEMPLATES
-        shape = pick[0]                  # ดึงรูปทรง (blocks) ออกมา
-        hue = pick[1]                    # hue = เฉดสี ดึง color_idx ออกมา
+    while i < len(hand):  # สุ่มชิ้นส่วนใหม่ให้ครบทุกช่องใน hand
+        t_idx = random.randint(0, len(SHAPE_TEMPLATES) - 1)
+        hand[i] = make_piece(t_idx, SHAPE_TEMPLATES[t_idx][1], i)
+        i += 1
 
-        # หาความกว้างจริงของชิ้นส่วนนี้ 
-        max_col = 0                     # เก็บค่าคอลัมน์ที่อยู่ขวาสุดของรูปทรงนี้ เริ่มที่ 0
-        j = 0
-        while j < len(shape):           # วนดูทุกบล็อกในรูปทรง
-            if shape[j][0] > max_col:                                                      
-                max_col = shape[j][0]   # อัปเดตค่าคอลัมน์ขวาสุดใหม่
-            j += 1
-        piece_width = (max_col + 1) * mini_cell   # แปลงเป็นความกว้าง pixel ของชิ้นส่วนนี้
 
-        new_x = slot_x + (slot_w / 2) - (piece_width / 2)   # ลบครึ่งความกว้างจริง
-        new_y = 490                          # ตำแหน่ง y ตายตัว วางแถวเดียวกันทุกชิ้น
-
-        hand[i] = Piece(shape, hue, new_x, new_y)   # สร้าง Piece ใหม่ เก็บลงช่องที่ i ของ hand
-
-        slot_x += slot_w                 # เลื่อนไปเตรียมตำแหน่ง slot ถัดไป
-        i += 1                           # เลื่อนไปช่องถัดไปของ hand
-
-def is_hand_empty(): #  check ว่าในมือยังว่างไหม
+def is_hand_empty():  # check ว่าในมือยังว่างไหม
     i = 0
     while i < len(hand):
         if hand[i] != 0:
             return False
         i += 1
     return True
+
 
 def check_game_over():
     global game_over
@@ -290,11 +307,11 @@ def check_game_over():
     i = 0
     while i < len(hand):
         piece = hand[i]
-        if piece != 0:                              # ข้ามช่องที่ใช้ไปแล้ว
+        if piece != 0:  # ข้ามช่องที่ใช้ไปแล้ว
             is_duplicate = False
             j = 0
             while j < len(unique_pieces):
-                if unique_pieces[j].blocks == piece.blocks:   # check ว่ารูปทรงเดียวกันไหม
+                if unique_pieces[j].blocks == piece.blocks:
                     is_duplicate = True
                 j += 1
             if is_duplicate == False:
@@ -302,7 +319,7 @@ def check_game_over():
         i += 1
 
     # ลองวางแต่ละชิ้นที่รวบรวมมาลงทุกช่องของกระดาน
-    game_over = True   # สมมติว่าเกมจบไว้ก่อน
+    game_over = True  # สมมติว่าเกมจบไว้ก่อน
     k = 0
     while k < len(unique_pieces) and game_over == True:
         r = 0
@@ -310,58 +327,253 @@ def check_game_over():
             c = 0
             while c < board.size and game_over == True:
                 if board.can_place(unique_pieces[k], r, c):
-                    game_over = False     # เจอที่วาง แสดงว่าเกมยังไม่จบ
+                    game_over = False  # เจอที่วาง แสดงว่าเกมยังไม่จบ
                 c += 1
             r += 1
         k += 1
     return game_over
 
+
+# ---------------- SAVE / LOAD ----------------
+
+def my_split(text, sep):
+    # ตัดข้อความตามตัวคั่น sep ที่ต้องการ
+    # ข้ามอักขระ [ ] และขึ้นบรรทัดใหม่ เพื่อให้อ่านรูปแบบ [0,0,...] ได้
+    parts = []  # ลิสต์ตัวอักษรที่เก็บมา
+    current = "" # เก็บตัวอักษรที่อ่านมา
+    i = 0
+    while i < len(text):
+        ch = text[i]  
+        if ch == sep:
+            parts.append(current)  # เจอตัวคั่น ให้เพิ่มค่าเข้าในลิสต์
+            current = ""  # เริ่มเก็บใหม่
+        elif ch != "[" and ch != "]" and ch != "\n" and ch != "\r":
+            current = current + ch   
+        i += 1
+    parts.append(current)  # เก็บชิ้นสุดท้าย
+    return parts
+
+
+def save_game():
+    global status_notice, status_timer
+    try:
+        f = open(SAVE_FILE, "w")
+
+        # บรรทัดที่ 1 : กระดานแบบ 2D  [แถว0]/[แถว1]/...
+        board_text = ""
+        r = 0
+        while r < board.size:
+            board_text = board_text + "["  # # เปิดวงเล็บ ต้นแถว
+            c = 0
+            while c < board.size:
+                board_text = board_text + str(board.grid[r][c])  # ใส่ค่าของช่องในกระดาน
+                if c < board.size - 1:
+                    board_text = board_text + ","  # คั่นระหว่างช่อง (ไม่ใส่หลังช่องสุดท้าย)
+                c += 1
+            board_text = board_text + "]"
+            if r < board.size - 1:
+                board_text = board_text + "/"  # คั่นระหว่างแถว (ไม่ใส่หลังแถวสุดท้าย)
+            r += 1
+        f.write(board_text + "\n")  # \n ขึ้นบรรทัดใหม่ตอนเขียนลงไฟล์
+
+        # บรรทัดที่ 2 : คะแนน,streak
+        f.write(str(score) + "," + str(combo_streak) + "\n")
+
+        # บรรทัดที่ 3 : ชิ้นส่วนในมือ  รูปทรง:สี;รูปทรง:สี;EMPTY
+        hand_text = ""
+        i = 0
+        while i < len(hand):
+            if hand[i] == 0:
+                hand_text = hand_text + "EMPTY"
+            else:
+                hand_text = hand_text + str(hand[i].template_idx) + ":" + str(hand[i].color_idx)
+            if i < len(hand) - 1:
+                hand_text = hand_text + ";"
+            i += 1
+        f.write(hand_text + "\n")
+
+        f.close()
+        status_notice = "Game Saved!"
+    except:
+        status_notice = "Save Failed!"
+    status_timer = 60
+
+
+def load_game():
+    global score, combo_streak, selected_piece, selected_index, game_over
+    global status_notice, status_timer
+
+    # อ่านไฟล์ ถ้าเปิดไม่ได้แปลว่ายังไม่เคย save
+    try:
+        f = open(SAVE_FILE, "r")
+        lines = f.readlines()
+        f.close()
+    except:
+        status_notice = "No Save Found!"
+        status_timer = 60
+        return
+
+    # แปลงข้อมูลเก็บไว้ในตัวแปรชั่วคราวก่อน ถ้าไฟล์เสียจะไม่กระทบเกมที่กำลังเล่น
+    try:
+        if len(lines) < 3:
+            status_notice = "Corrupt Save!"
+            status_timer = 60
+            return
+
+        # บรรทัดที่ 1 : กระดาน
+        row_texts = my_split(lines[0], "/")
+        new_grid = []
+        r = 0
+        while r < board.size:
+            cell_texts = my_split(row_texts[r], ",")
+            new_row = []
+            c = 0
+            while c < board.size:
+                new_row.append(int(cell_texts[c]))
+                c += 1
+            new_grid.append(new_row)
+            r += 1
+
+        # บรรทัดที่ 2 : คะแนน,streak
+        score_parts = my_split(lines[1], ",")
+        new_score = int(score_parts[0])
+        new_streak = int(score_parts[1])
+
+        # บรรทัดที่ 3 : ชิ้นส่วนในมือ
+        hand_texts = my_split(lines[2], ";")
+        new_hand = []
+        i = 0
+        while i < len(hand):
+            if hand_texts[i] == "EMPTY":
+                new_hand.append(0)
+            else:
+                pair = my_split(hand_texts[i], ":")
+                new_hand.append(make_piece(int(pair[0]), int(pair[1]), i))
+            i += 1
+    except:
+        status_notice = "Corrupt Save!"
+        status_timer = 60
+        return
+
+    # ข้อมูลถูกต้องทั้งหมดแล้ว จึงนำมาใช้จริง
+    board.grid = new_grid
+    score = new_score
+    combo_streak = new_streak
+    i = 0
+    while i < len(hand):
+        hand[i] = new_hand[i]
+        i += 1
+
+    selected_piece = None
+    selected_index = -1
+    check_game_over()  # คำนวณสถานะเกมจบใหม่ (ตั้งค่า game_over ให้เอง)
+
+    status_notice = "Game Loaded!"
+    status_timer = 60
+
+
+def keyPressed():
+    if key == 's' or key == 'S':
+        save_game()
+    elif key == 'l' or key == 'L':
+        load_game()
+
+
+# ---------------- MAIN ----------------
+
 def setup():
-    global board, score, game_over
-    size(500,600)
+    global board, score, combo_streak, game_over, status_notice, status_timer
+    global clear_msg, clear_timer
+    size(500, 600)
 
     board = Board(GRID_SIZE, CELL_SIZE, BOARD_X, BOARD_Y)
 
     score = 0
+    combo_streak = 0
     game_over = False
+    status_notice = ""
+    status_timer = 0
+    clear_msg = ""
+    clear_timer = 0
 
     spawn_hand()
- 
 
-
-def draw():
-    background(100, 100, 100)
-
-    # --- แถบด้านบน: คะแนน และสถานะเกม ---
+# ข้อความแถบด้านบน: คะแนน ปุ่มลัด สถานะเกม และ streak
+def draw_hud():  
+    noStroke()
     fill(255, 255, 255)
     textSize(22)
-    text("Score: " + str(score), BOARD_X, 36)
+    text("Score: " + str(score), BOARD_X, 32)
 
-    textSize(18)
+    textSize(12)
+    fill(210, 210, 210)
+    text("[S] Save  |  [L] Load", BOARD_X, 50)
+
+    textSize(16)
     if game_over:
         fill(255, 90, 90)
-        text("Status: YOU LOSE", 260, 36)
+        text("Status: YOU LOSE", 290, 32)
     else:
         fill(120, 255, 120)
-        text("Status: Playing", 260, 36)
+        text("Status: Playing", 290, 32)
 
-    board.draw()
+    if combo_streak > 1:
+        fill(255, 170, 60)
+        text("Streak x" + str(combo_streak), 290, 52)
 
-    # วาดชิ้นส่วนในมือ ข้ามช่องว่าง และข้ามชิ้นที่กำลังถูกลาก
+# ข้อความ CLEAR +N มุมขวาบน 
+def draw_clear_msg():
+    global clear_timer
+    if clear_timer > 0:
+        noStroke()
+        fill(255, 220, 60)
+        textSize(18)
+        text(clear_msg, width - 120, 52)
+        clear_timer = clear_timer - 1
+
+# กรอบบอกช่องที่ชิ้นส่วนจะลงถ้าปล่อยตอนนี้
+def draw_ghost_preview():
+    if selected_piece != None:
+        cs = board.cell_size
+        g_c = int(round((selected_piece.x - board.ox) / float(cs)))
+        g_r = int(round((selected_piece.y - board.oy) / float(cs)))
+
+        if board.can_place(selected_piece, g_r, g_c):
+            g_color = PALETTE[selected_piece.color_idx]
+            i = 0
+            while i < len(selected_piece.blocks):
+                gx = board.ox + (g_c + selected_piece.blocks[i][0]) * cs
+                gy = board.oy + (g_r + selected_piece.blocks[i][1]) * cs
+                draw_outline(gx, gy, cs, g_color, 3)
+                i += 1
+
+# วาดชิ้นส่วนในมือ ข้ามช่องว่าง และข้ามชิ้นที่กำลังถูกลาก
+def draw_hand():
     slot = 0
     while slot < len(hand):
         if hand[slot] != 0 and hand[slot].is_dragging == False:
             hand[slot].draw()
         slot += 1
 
-    # วาดชิ้นที่กำลังลากไว้บนสุด
     if selected_piece != None:
         selected_piece.draw()
 
-    # ตอนเกมจบ แสดงข้อความกลางจอ
-    if game_over :
-        noStroke()  
-        
+# ข้อความแจ้งผล Save / Load
+def draw_status_notice():
+    global status_timer
+    if status_timer > 0:
+        noStroke()
+        fill(255, 255, 255)
+        textSize(16)
+        text(status_notice, BOARD_X, 472)
+        status_timer = status_timer - 1
+
+# แสดงข้อความกลางจอ  ตอนเกมจบ 
+def draw_game_over(): 
+    
+    if game_over:
+        noStroke()
+
         fill(255, 90, 90)
         textSize(40)
         text("YOU LOSE", width / 2 - 85, 298)
@@ -370,9 +582,20 @@ def draw():
         textSize(16)
         text("Click to restart", width / 2 - 55, 335)
 
+def draw():
+    background(100, 100, 100)
+
+    draw_hud()
+    draw_clear_msg()
+    board.draw()
+    draw_ghost_preview()
+    draw_hand()
+    draw_status_notice()
+    draw_game_over()
+
 def mousePressed():
-    global selected_piece, selected_index, game_over
-    
+    global selected_piece, selected_index
+
     # ถ้าแพ้แล้ว คลิกเพื่อเริ่มเกมใหม่
     if game_over:
         setup()
@@ -382,14 +605,13 @@ def mousePressed():
     i = 0
     while i < len(hand):
         piece = hand[i]
-        # ถ้าเจอให้เตรียมพร้อมสำหรับการลาก
         if piece != 0 and piece.contains_point(mouseX, mouseY):
             selected_piece = piece
             selected_index = i
 
-            # ระยะจากมุมซ้ายบนของชิ้นส่วน(ขนาดเล็กในมือ) ถึงเมาส์
-            # คูณสเกลเป็นขนาดใหญ่ เพราะตอนลากชิ้นส่วนจะขยายเป็น 2 เท่า
-            scale = CELL_SIZE / piece.mini_cell   
+            # ระยะจากมุมซ้ายบนของชิ้นส่วน (ขนาดเล็กในมือ) ถึงเมาส์
+            # คูณ scale เพราะตอนลากชิ้นส่วนจะขยายเป็น 2 เท่า
+            scale = CELL_SIZE / float(piece.mini_cell)
             piece.drag_offset_x = (mouseX - piece.x) * scale
             piece.drag_offset_y = (mouseY - piece.y) * scale
 
@@ -397,48 +619,62 @@ def mousePressed():
             piece.is_dragging = True
             piece.x = mouseX - piece.drag_offset_x
             piece.y = mouseY - piece.drag_offset_y
-            return          
+            return
         i += 1
 
+
 def mouseDragged():
-        if selected_piece != None : # มีการลากชิ้นส่วนเกิดขึ้น
-            # คำนวณตำแหน่งมุมซ้ายบนใหม่ของชิ้นส่วนตามเมาส์ โดยรักษาระยะ offset ที่คำนวณไว้ตอนคลิก
-            selected_piece.x = mouseX - selected_piece.drag_offset_x 
-            selected_piece.y = mouseY - selected_piece.drag_offset_y
+    if selected_piece != None:  # มีการลากชิ้นส่วนเกิดขึ้น
+        selected_piece.x = mouseX - selected_piece.drag_offset_x
+        selected_piece.y = mouseY - selected_piece.drag_offset_y
+
 
 def mouseReleased():
-    global selected_piece, selected_index, score, game_over
+    global selected_piece, selected_index, score, combo_streak, game_over
+    global clear_msg, clear_timer
 
     # ไม่ได้ถือชิ้นส่วน ให้ออกจากฟังก์ชัน
     if selected_piece == None:
         return
 
-    # แปลงตำแหน่งมุมซ้ายบนของชิ้นส่วน (pixel) เป็นตำแหน่งพิกัดช่องบนกระดาน
+    # แปลงตำแหน่งมุมซ้ายบนของชิ้นส่วน (pixel) เป็นพิกัดช่องบนกระดาน
     col_float = (selected_piece.x - board.ox) / float(board.cell_size)
     row_float = (selected_piece.y - board.oy) / float(board.cell_size)
     target_c = int(round(col_float))
     target_r = int(round(row_float))
 
     if board.can_place(selected_piece, target_r, target_c):
-        board.place(selected_piece, target_r, target_c) # ส่งพิกัดช่อง ให้ can_place() วนคำนวณทุก block แล้วเขียนสีลงกระดาน
+        board.place(selected_piece, target_r, target_c)
 
-        # คะแนน = จากการวาง + จากแถวและคอลัมน์ที่ล้างได้
-        gained = len(selected_piece.blocks) * 10
-        gained = gained + board.clear_lines()
-        score = score + gained
+        # คะแนนจากการวาง + คะแนนจากแถว/คอลัมน์ที่ล้างได้
+        piece_points = len(selected_piece.blocks) * 10
+        line_points = board.clear_lines()
 
-        hand[selected_index] = 0      # เอาชิ้นที่ใช้แล้วออกจากมือ
+        # combo streak: ล้างได้ติดกันหลายครั้ง ตั้งแต่ครั้งที่ 2 ได้โบนัสครั้งละ 50 x (streak - 1)
+        if line_points > 0:
+            combo_streak = combo_streak + 1
+            combo_bonus = (combo_streak - 1) * 50
+            clear_msg = "CLEAR +" + str(line_points)  
+            clear_timer = 60
+        else:
+            combo_streak = 0  # วางแล้วไม่ล้างอะไร streak กลับเป็น 0
+            combo_bonus = 0
+        
+     
+
+        score = score + piece_points + line_points + combo_bonus
+
+        hand[selected_index] = 0  # เอาชิ้นที่ใช้แล้วออกจากมือ
 
         if is_hand_empty():
-            spawn_hand()              # หมดทั้ง 3 ชิ้น สุ่มชุดใหม่
+            spawn_hand()  # หมดทั้ง 3 ชิ้น สุ่มชุดใหม่
         game_over = check_game_over()
     else:
-        selected_piece.reset_pos()    # วางไม่ได้ ส่งกลับที่เดิม
+        selected_piece.reset_pos()  # วางไม่ได้ ส่งกลับที่เดิม
 
-    # เคลียร์การเลือกใหม่ 
+    # เคลียร์การเลือก
     selected_piece = None
     selected_index = -1
 
 
 draw = draw
-run()
